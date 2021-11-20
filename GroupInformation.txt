@@ -1,1 +1,9 @@
 Information Page
+
+DATA sets are 
+1. area
+2. population
+3. population distribution
+4. region classification
+5. urbanization
+
