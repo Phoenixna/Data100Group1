@@ -1,5 +1,5 @@
 ---
-title: "GroupFile"
+title: "DATA100 GROUP 1 FINAL PROJECT"
 output: html_document
 ---
 
