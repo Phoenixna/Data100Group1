@@ -5,6 +5,201 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# repos="https://utstat.toronto.edu/cran/"
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(maps)
+library(dplyr)
 ```
 
+```{r results='hide', warning=FALSE,}
+covid_cases <- read_csv("https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                        col_types = cols(
+                          .default = col_double(),
+                          date = col_date(format =""),
+                          location = col_character()
+                        ))
+covid_cases %>% head()
+
+covid_vaccs <- read_csv("https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv")
+covid_vaccs %>% head()
+
+covid_tests <- read_csv("https://covid.ourworldindata.org/data/testing/covid-testing-all-observations.csv")
+covid_tests %>% head()
+
+covid_response <- read_csv("https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv",
+                           col_types = cols(
+                             .default = col_character(),
+                             Date = col_date(format = "%Y%m%d"))
+                           ) %>%
+    mutate(
+      across(starts_with("Confirmed"), as.integer),
+      across(ends_with("Flag"), as.logical), 
+      across(ends_with("Index"), as.double), 
+      across(ends_with("ForDisplay"), as.double),
+      )
+covid_response %>% head()
+
+regionclassification <- read_tsv("WorldRegions.csv",skip = 1)
+regionclassification %>% head()
+
+area <- read_tsv("AREA.csv")
+area %>% head()
+
+population <- read_tsv("POPULATION.csv")
+population %>% head()
+
+populationdistribution <- read_tsv("POPULATIONDISTRIBUTION.csv")
+populationdistribution %>% head()
+
+urbanization <- read_tsv("URBANIZATION.csv")
+urbanization %>% head()
+```
+
+ - Tidying Data(idk they all look itdy)
+
+```{r}
+covid_cases
+covid_response
+covid_tests
+covid_vaccs
+regionclassification
+area
+population
+populationdistribution
+urbanization
+```
+```{r}
+urbanization_tidy <- urbanization %>%
+  select(`Country Name`, `Country Code`, `2020`) %>%
+  rename("Urbanization Level" = `2020`)
+```
+
+
+
+
+
+
+ - Date Selection
+ 
+```{r}
+cases_per_date <- covid_cases %>%
+  filter(date > "2021-01-01") %>%
+  select(date, new_cases) %>%
+  group_by(date)
+cases_per_date
+
+```
+```{r}
+cases_per_date %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+cases_per_date %>%
+  filter(date > "2021-07-01") %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+cases_per_date %>%
+  filter(date < "2021-07-01") %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+```
+
+```{r}
+cases_per_date %>%
+  filter(date < "2021-07-01") %>%
+  arrange(desc(new_cases))
+cases_per_date %>%
+  filter(date > "2021-07-01") %>%
+  arrange(desc(new_cases))
+```
+
+ - analysing urbanization
+ 
+```{r}
+covid_cases_date1 <- covid_cases %>% 
+  filter(date == "2021-04-28")
+covid_cases_date2 <- covid_cases %>% 
+  filter(date == "2021-08-06")
+covid_vaccs_date1 <- covid_vaccs %>% 
+  filter(date == "2021-08-06")
+covid_vaccs_date2 <- covid_vaccs %>%
+    filter(date == "2021-04-28")
+```
+
+```{r}
+urbanization_covid_date1 <- urbanization_tidy %>%
+  right_join(covid_cases_date1,by = c("Country Name" = "location"))
+
+urbanization_covid_date1
+
+urbanization_covid_date1 %>% 
+  ggplot(mapping = aes(x = `Urbanization Level`, y = total_cases))+
+  geom_boxplot()
+
+urbanization_covid_date1 %>%
+  filter(`total_cases` < 10000000) %>%
+    ggplot(mapping = aes(x = `Urbanization Level`, y = total_cases))+
+    geom_point()+
+  geom_smooth(method= "lm")
+```
+```{r}
+urbanization_covid_date2 <- urbanization_tidy %>%
+  right_join(covid_cases_date2,by = c("Country Name" = "location"))
+
+urbanization_covid_date2
+
+urbanization_covid_date2 %>% 
+  ggplot(mapping = aes(x = `Urbanization Level`, y = total_cases))+
+  geom_boxplot()
+
+urbanization_covid_date2 %>%
+  filter(`total_cases` < 10000000) %>%
+    ggplot(mapping = aes(x = `Urbanization Level`, y = total_cases))+
+    geom_point() +
+  geom_smooth(method = "lm")
+```
+ 
+
+```{r}
+urbanization_vacc_date1 <- urbanization_tidy %>%
+  right_join(covid_vaccs_date1,by = c("Country Name" = "location"))
+
+urbanization_vacc_date1
+
+urbanization_vacc_date1 %>% 
+  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
+  geom_boxplot()
+
+urbanization_vacc_date1 %>% 
+  filter(daily_vaccinations < 1000000) %>%
+  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
+  geom_point() +
+  geom_smooth(method = "lm")
+
+
+```
+
+```{r}
+urbanization_vacc_date2 <- urbanization_tidy %>%
+  right_join(covid_vaccs_date2,by = c("Country Name" = "location"))
+
+urbanization_vacc_date2
+
+urbanization_vacc_date2 %>% 
+  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
+  geom_boxplot()
+
+urbanization_vacc_date2 %>% 
+  filter(daily_vaccinations < 1000000) %>%
+  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
+  geom_point() +
+  geom_smooth(method = "lm")
+
+```
+ 
+ 
 
