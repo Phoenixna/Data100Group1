@@ -7,3 +7,6 @@ DATA sets are
 4. region classification
 5. urbanization
 
+Dates 
+september 20th 2020
+tuesday march 2020
