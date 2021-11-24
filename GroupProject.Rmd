@@ -1,7 +1,3 @@
----
-title: "DATA100 GROUP 1 FINAL PROJECT"
-output: html_document
----
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -139,13 +135,13 @@ covid_cases_date1 <- covid_cases %>%
 covid_cases_date2 <- covid_cases %>% 
   filter(date == "2021-08-06")
 covid_vaccs_date1 <- covid_vaccs %>% 
-  filter(date == "2021-08-06")
+  filter(date == "2021-04-28")
 covid_vaccs_date2 <- covid_vaccs %>%
-    filter(date == "2021-04-28")
+    filter(date == "2021-08-06")
 covid_tests_date1 <- covid_tests %>% 
-  filter(Date == "2021-08-06")
+  filter(Date == "2021-04-28")
 covid_tests_date2 <- covid_tests %>%
-    filter(Date == "2021-04-28")
+    filter(Date == "2021-08-06")
 ```
 
 ```{r}
@@ -223,6 +219,28 @@ urbanization_vacc_date2 %>%
   geom_smooth(method = "lm")
 ```
 
+```{r}
+urbanization_test_date1 <- urbanization_tidy %>%
+  right_join(covid_tests_date1, by = c("Country Code" = "ISO code"))%>%
+  arrange(desc(`Daily change in cumulative total`))
+
+urbanization_test_date2 <- urbanization_tidy %>%
+  right_join(covid_tests_date2, by = c("Country Code" = "ISO code"))%>%
+  arrange(desc(`Daily change in cumulative total`))
+urbanization_test_date1 %>%
+  ggplot(mapping = aes(x = `Urbanization Level`, y = `Daily change in cumulative total`))+
+  geom_boxplot()
+urbanization_test_date1 %>%
+  filter(`Daily change in cumulative total` < 500000) %>%
+  ggplot(mapping = aes(x = `Urbanization Level`, y = `Daily change in cumulative total`))+
+  geom_point()
+urbanization_test_date2 %>%
+    filter(`Daily change in cumulative total` < 500000) %>%
+    ggplot(mapping = aes(x = `Urbanization Level`, y = `Daily change in cumulative total`))+
+  geom_point()
+
+
+```
  
 
  ~~ Urbanization daily vaccinations top 10 
@@ -230,15 +248,15 @@ urbanization_vacc_date2 %>%
 urb_vacc_date1 <- urbanization_vacc_date1 %>%
   filter(is.na(`Country Code`) == FALSE) %>%
   arrange(desc(daily_vaccinations)) %>%
-  slice(1:10) %>%
+  slice(1:20) %>%
   select("Country Name", "Country Code", "date", "daily_vaccinations", "Urbanization Level")
 urb_vacc_date2 <- urbanization_vacc_date2 %>%
   filter(is.na(`Country Code`) == FALSE) %>%
   arrange(desc(daily_vaccinations)) %>%
-  slice(1:10) %>%
+  slice(1:20) %>%
   select("Country Name", "Country Code", "date", "daily_vaccinations", "Urbanization Level")
 
-urbanization_dates <- urb_vacc_date1 %>%
+urbanization_vaccs_dates <- urb_vacc_date1 %>%
   full_join(urb_vacc_date2) %>%
   mutate(date = as.character(date))
 urbanization_dates
@@ -246,10 +264,83 @@ urbanization_dates
 ```
 
 ```{r}
-urbanization_dates %>% 
+urbanization_vaccs_dates %>% 
   ggplot()+
   geom_point(mapping = aes(x = daily_vaccinations, y = `Urbanization Level`, colour = date))
   
 ```
 
+~~ Daily looking at stats whith class
 
+
+```{r}
+urbanization_vacc_date1_OWID <- urbanization_tidy %>%
+  right_join(covid_vaccs_date1,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+
+urbanization_vacc_date2_OWID <- urbanization_tidy %>%
+  right_join(covid_vaccs_date2,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+
+
+urbanization_vacc_date1_OWID %>%
+  arrange(desc(daily_vaccinations))
+
+urbanization_vacc_date2_OWID %>%
+  arrange(desc(daily_vaccinations))
+
+urbanization_vacc_date1_OWID %>% 
+  full_join(urbanization_vacc_date2_OWID) %>%
+    mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = daily_vaccinations,y = `Country Name`, color = date))
+
+```
+```{r}
+urbanization_cases_date1_OWID <- urbanization_tidy %>%
+  right_join(covid_cases_date1,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+urbanization_cases_date2_OWID <- urbanization_tidy %>%
+  right_join(covid_cases_date2,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+
+urbanization_cases_date1_OWID
+urbanization_cases_date2_OWID
+
+urbanization_cases_date1_OWID %>% 
+  full_join(urbanization_cases_date2_OWID) %>%
+    mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = total_cases,y = `Country Name`, color = date))
+
+urbanization_cases_date1_OWID %>% 
+  full_join(urbanization_cases_date2_OWID) %>%
+    mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = new_cases,y = `Country Name`, color = date))
+
+```
+```{r}
+urbanization_cases_date1_OWID
+urbanization_vacc_date1_OWID
+urbanization_cases_date1_OWID %>%
+  select(-(iso_code)) %>%
+  left_join(urbanization_vacc_date1_OWID, be = "date") %>%
+  ggplot()+
+  geom_point(mapping = aes(x = population, y = daily_vaccinations, color = `Country Name`))
+
+urbanization_cases_date2_OWID %>%
+  select(-(iso_code)) %>%
+  left_join(urbanization_vacc_date2_OWID, be = "date") %>%
+  ggplot()+
+  geom_point(mapping = aes(x = population, y = daily_vaccinations, color = `Country Name`))
+```
+```{r}
+urbanization_cases_date1_OWID %>%
+  ggplot()+
+  geom_point(mapping = aes(x = population, y = total_cases, color = `Country Name`))
+
+urbanization_cases_date2_OWID %>%
+  ggplot()+
+  geom_point(mapping = aes(x = population, y = total_cases, color = `Country Name`))
+```
