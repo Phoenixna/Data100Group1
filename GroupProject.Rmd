@@ -55,7 +55,7 @@ urbanization %>% head()
 
  - Tidying Data(idk they all look itdy)
 
-```{r}
+```{r results = 'hide'}
 covid_cases
 covid_response
 covid_tests
@@ -66,7 +66,8 @@ population
 populationdistribution
 urbanization
 ```
-```{r}
+
+```{r results = 'hide'}
 urbanization_tidy <- urbanization %>%
   select(`Country Name`, `Country Code`, `2020`) %>%
   rename("Urbanization Level" = `2020`)
@@ -77,6 +78,8 @@ urbanization_tidy <- urbanization %>%
 
 
  - Date Selection
+ 
+ So to pick our dates we wanted to see the difference between the peaks of the 2 waves of covid-19. To do this we looked plotted the data set and ploted the amount of new cases each dya of 2021
  
 ```{r}
 cases_per_date <- covid_cases %>%
@@ -90,6 +93,13 @@ cases_per_date %>%
   ggplot(mapping = aes(x = date, y = new_cases)) +
   geom_point() +
   geom_smooth()
+```
+
+As we can see there are 2 clear waves of covid where daily cases rise then fall, The 2 happen around mid may and late august.
+
+To find the dates we wanted to use we spit the year into 2 sections before july 1st and after july first as you can see in the next graphs this clearly defines the 2 waves
+
+```{r}
 cases_per_date %>%
   filter(date < "2021-07-01") %>%
   ggplot(mapping = aes(x = date, y = new_cases)) +
@@ -101,6 +111,10 @@ cases_per_date %>%
   geom_point() +
   geom_smooth()
 ```
+
+Now we filtered for the days with the most new cases in 2021 before july 1st and after july first giving us our dates.
+
+April 23th and august 6th
 
 ```{r}
 cases_per_date %>%
@@ -124,10 +138,8 @@ cases_per_date %>%
 
 
  - analysing urbanization
-
-```{r}
-covid_tests
-```
+ 
+Now we wanted to look at the relation urbanization has on covid vacinations, test and cases
 
 ```{r}
 covid_cases_date1 <- covid_cases %>%
@@ -144,80 +156,88 @@ covid_tests_date2 <- covid_tests %>%
     filter(Date == "2021-08-06")
 ```
 
+first we looked at cases. We merged the the urbanization with the covid at. Then we made the boxplot so we could get rid of the outliars from our data
 ```{r}
 urbanization_covid_date1 <- urbanization_tidy %>%
   right_join(covid_cases_date1,by = c("Country Name" = "location"))
 
-urbanization_covid_date1
-
-urbanization_covid_date1 %>% 
-  ggplot(mapping = aes(x = `Urbanization Level`, y =new_cases))+
-  ggtitle("2021-04-08")+
-  geom_boxplot()
-
-urbanization_covid_date1 %>%
-  filter(`total_cases` < 10000000) %>%
-    ggplot(mapping = aes(x = `Urbanization Level`, y = new_cases))+
-    ggtitle("2021-04-08")+
-    geom_point()+
-  geom_smooth(method= "lm")
-
 urbanization_covid_date2 <- urbanization_tidy %>%
   right_join(covid_cases_date2,by = c("Country Name" = "location"))
-
-urbanization_covid_date2
 
 urbanization_covid_date2 %>% 
   ggplot(mapping = aes(x = `Urbanization Level`, y = new_cases))+
   ggtitle("2021-08-06")+
   geom_boxplot()
 
+urbanization_covid_date1 %>% 
+  ggplot(mapping = aes(x = `Urbanization Level`, y =new_cases))+
+  ggtitle("2021-04-08")+
+  geom_boxplot()
+```
+
+as shown in the box plot there are many outliars in this set. We filtered so the plot chart oly shows entries be that have below 1.5 million new cases.
+```{r}
+
+urbanization_covid_date1 %>%
+  filter(`total_cases` < 5000000) %>%
+    ggplot(mapping = aes(x = `Urbanization Level`, y = new_cases))+
+    ggtitle("2021-04-08")+
+    geom_point()+
+  geom_smooth(method= "lm")
+
 urbanization_covid_date2 %>%
-  filter(`total_cases` < 10000000) %>%
+  filter(`total_cases` < 5000000) %>%
     ggplot(mapping = aes(x = `Urbanization Level`, y = new_cases))+
     ggtitle("2021-08-06")+
     geom_point() +
   geom_smooth(method = "lm")
 ```
  
+ From this plot we can see there clear correlation between cases and urbanization. The more urban a place is there more cases there are.
+ Another thing we see is that on march 28th the correlation between new_cases is a lot stronger than on april 23rd
+ 
+ Next we did the same thing with tests and vaccinations to se the correlation
 
 ```{r}
 urbanization_vacc_date1 <- urbanization_tidy %>%
   right_join(covid_vaccs_date1,by = c("Country Name" = "location")) %>%
     filter(iso_code %>% str_detect("^[^OWID_]"))
 
-urbanization_vacc_date1
 
 urbanization_vacc_date1 %>% 
   ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
   ggtitle("2021-04-08")+
   geom_boxplot()
-
-urbanization_vacc_date1 %>% 
-  filter(daily_vaccinations < 1000000) %>%
-  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
-  ggtitle("2021-04-08")+
-  geom_point() +
-  geom_smooth(method = "lm")
 
 urbanization_vacc_date2 <- urbanization_tidy %>%
   right_join(covid_vaccs_date2,by = c("Country Name" = "location")) %>%
     filter(iso_code %>% str_detect("^[^OWID_]"))
 
-urbanization_vacc_date2
-
 urbanization_vacc_date2 %>% 
   ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
   ggtitle("2021-08-06")+
   geom_boxplot()
+```
+For the vaccination se there seemed to be a lot less outliers. we decided to plot the places that had less than 6 hundred thousand daily_vaccinations
+``` {r}
+urbanization_vacc_date1 %>% 
+  filter(daily_vaccinations < 600000) %>%
+  ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
+  ggtitle("2021-04-08")+
+  geom_point() +
+  geom_smooth(method = "lm")
+
+
 
 urbanization_vacc_date2 %>% 
-  filter(daily_vaccinations < 1000000) %>%
+  filter(daily_vaccinations < 600000) %>%
   ggplot(mapping = aes(x = `Urbanization Level`, y = daily_vaccinations))+
   ggtitle("2021-08-06")+
   geom_point() +
   geom_smooth(method = "lm")
 ```
+Here we some thing interesting once again in march 8th the relation is a lot stronger than on april 28th. On april 28th the chart seems to be a lot more scattered with more randomness than the first date.
+
 
 ```{r}
 urbanization_test_date1 <- urbanization_tidy %>%
@@ -243,8 +263,10 @@ urbanization_test_date2 %>%
 ```
  
 
- ~~ Urbanization daily vaccinations top 10 
-```{r}
+ ~~ Urbanization daily vaccinations top 20
+
+Now we decided to look at the places with the most vaccinations on our given date and see how there urbanization varies. 
+```{r }
 urb_vacc_date1 <- urbanization_vacc_date1 %>%
   filter(is.na(`Country Code`) == FALSE) %>%
   arrange(desc(daily_vaccinations)) %>%
@@ -259,7 +281,6 @@ urb_vacc_date2 <- urbanization_vacc_date2 %>%
 urbanization_vaccs_dates <- urb_vacc_date1 %>%
   full_join(urb_vacc_date2) %>%
   mutate(date = as.character(date))
-urbanization_dates
 
 ```
 
@@ -269,8 +290,19 @@ urbanization_vaccs_dates %>%
   geom_point(mapping = aes(x = daily_vaccinations, y = `Urbanization Level`, colour = date))
   
 ```
+As we can see the urbanization levels vary between the dates. on the march 4th the urbanization level is more top heavy. As for on April 06 the urbanication level is more evenly distributed.
 
-~~ Daily looking at stats whith class
+To summarise On march 28th the vaccinations and cases where more linear and top heavy, while on April 6th there was more fluctuation. 
+
+One theory we had of why the data is behaving this way is because More urban places tend to be more populated and richer, making them more in demand for vaccines and more likley to get cases making the data left skewed. 
+
+The reason that the cases and vaccinations are more fluxuant on the second date is because it is later on in the covid cycle and the urban places where have already been vaccinated and are now giving vaccinations to less popluated and less wealthy places.
+
+The reason that the first date is more linear is because these wealther more populated places are still consuming all the vaccinations and are getting more cases because the popuation is higher.
+
+~~ looking at stats by class
+
+One thing i noticed while looking through the vaccine and cases files is that there are there is information given by class. In this part of the report wwe will be looking at the varince in cases and vaccines in different classes.
 
 
 ```{r}
@@ -343,4 +375,42 @@ urbanization_cases_date1_OWID %>%
 urbanization_cases_date2_OWID %>%
   ggplot()+
   geom_point(mapping = aes(x = population, y = total_cases, color = `Country Name`))
+```
+```{r}
+
+urbanization_cases_date1_OWID %>%
+  mutate("pertot" = (total_cases/sum(total_cases)*100), "pernew" = (new_cases/sum(new_cases)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`, "pertot", "pernew", "perpop")
+urbanization_cases_date2_OWID %>%
+  mutate("pertot" = (total_cases/sum(total_cases)*100), "pernew" = (new_cases/sum(new_cases)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`, "pertot", "pernew", "perpop")
+```
+
+```{r}
+urbanization_vacc_date1_OWID
+urb_vacc_date1_owid_per <- urbanization_vacc_date1_OWID %>%
+  select(-(iso_code)) %>%
+  right_join(urbanization_cases_date1_OWID, be = "date") %>%
+  mutate("pertot" = (people_vaccinated/sum(people_vaccinated)*100), "pernew" = (daily_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`,date, "pertot", "pernew", "perpop")
+urb_vacc_date2_owid_per <-urbanization_vacc_date2_OWID %>%
+  select(-(iso_code)) %>%
+  right_join(urbanization_cases_date2_OWID, be = "date") %>%
+  mutate("pertot" = (people_vaccinated/sum(people_vaccinated)*100), "pernew" = (daily_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`,date, "pertot", "pernew", "perpop")
+```
+
+```{r}
+urb_vacc_date1_owid_per %>%
+  full_join(urb_vacc_date2_owid_per) %>%
+  ggplot(mapping = aes(date,pertot, fill = `Country Name`))+
+  geom_col()
+urb_vacc_date1_owid_per %>%
+  full_join(urb_vacc_date2_owid_per) %>%
+  ggplot(mapping = aes(date,pernew, fill = `Country Name`))+
+  geom_col()
+urb_vacc_date1_owid_per %>%
+  full_join(urb_vacc_date2_owid_per) %>%
+  ggplot(mapping = aes(`Country Name`, perpop))+
+  geom_col()
 ```
