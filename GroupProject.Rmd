@@ -1,4 +1,3 @@
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # repos="https://utstat.toronto.edu/cran/"
@@ -40,10 +39,10 @@ covid_response %>% head()
 regionclassification <- read_tsv("WorldRegions.csv",skip = 1)
 regionclassification %>% head()
 
-area <- read_tsv("AREA.csv")
+area <- read_tsv("AREA.csv", col_names = c("Country", "Area", "ranking", "reigon"),skip = 1)
 area %>% head()
 
-population <- read_tsv("POPULATION.csv")
+population <- read_tsv("POPULATION.csv", col_names = c("Country", "Population", "ranking", "reigon"),skip = 1)
 population %>% head()
 
 populationdistribution <- read_tsv("POPULATIONDISTRIBUTION.csv")
@@ -72,6 +71,7 @@ urbanization_tidy <- urbanization %>%
   select(`Country Name`, `Country Code`, `2020`) %>%
   rename("Urbanization Level" = `2020`)
 ```
+
 
 
 
@@ -300,9 +300,42 @@ The reason that the cases and vaccinations are more fluxuant on the second date 
 
 The reason that the first date is more linear is because these wealther more populated places are still consuming all the vaccinations and are getting more cases because the popuation is higher.
 
+To prove this hypothesis we can look into the population denisity by taking a population and dividing it by area and compare it with both the urbanziation.
+
+```{r}
+population
+area
+pop_density <- population %>%
+  left_join(area, by = c("Country")) %>%
+  mutate("population_density" = Population/Area)
+pop_density
+```
+
+```{r}
+
+pop_density %>%
+  left_join(urbanization_dates, by = c("Country" = "Country Name")) %>%
+  filter(date == "2021-04-28") %>%
+  ggplot(mapping = aes(y = population_density, x = `Urbanization Level`), na.rm = TRUE)+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+
+pop_density %>%
+  left_join(urbanization_dates, by = c("Country" = "Country Name")) %>%
+  filter(date == "2021-08-06") %>%
+  ggplot(mapping = aes(y = population_density, x = `Urbanization Level`), na.rm = TRUE)+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+  
+```
+
+When looking at the population density verses the urbanization level it disproves our hypothesis as the places with less urbanization tend to have a larger population density. We would be able to look into the hypothesis more if there was a data set on the economy of a country but there is not.
+
 ~~ looking at stats by class
 
-One thing i noticed while looking through the vaccine and cases files is that there are there is information given by class. In this part of the report wwe will be looking at the varince in cases and vaccines in different classes.
+One thing we noticed while looking through the vaccine and cases files is that there are there is information given by class. In this part of the report we will be looking at the variance in cases and vaccines in different classes.
 
 
 ```{r}
@@ -313,22 +346,18 @@ urbanization_vacc_date1_OWID <- urbanization_tidy %>%
 urbanization_vacc_date2_OWID <- urbanization_tidy %>%
   right_join(covid_vaccs_date2,by = c("Country Name" = "location")) %>%
   filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+```
 
+To look into the variance between classes we decided to make a count chart showiing the difference in vaccination, cases between the class on each day.
 
-urbanization_vacc_date1_OWID %>%
-  arrange(desc(daily_vaccinations))
-
-urbanization_vacc_date2_OWID %>%
-  arrange(desc(daily_vaccinations))
-
+```{r}
 urbanization_vacc_date1_OWID %>% 
   full_join(urbanization_vacc_date2_OWID) %>%
     mutate(date = as.character(date)) %>%
   ggplot()+
   geom_count(mapping = aes(x = daily_vaccinations,y = `Country Name`, color = date))
 
-```
-```{r}
+
 urbanization_cases_date1_OWID <- urbanization_tidy %>%
   right_join(covid_cases_date1,by = c("Country Name" = "location")) %>%
   filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
@@ -336,8 +365,11 @@ urbanization_cases_date2_OWID <- urbanization_tidy %>%
   right_join(covid_cases_date2,by = c("Country Name" = "location")) %>%
   filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
 
-urbanization_cases_date1_OWID
-urbanization_cases_date2_OWID
+urbanization_cases_date1_OWID %>% 
+  full_join(urbanization_cases_date2_OWID) %>%
+    mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = new_cases,y = `Country Name`, color = date))
 
 urbanization_cases_date1_OWID %>% 
   full_join(urbanization_cases_date2_OWID) %>%
@@ -345,16 +377,15 @@ urbanization_cases_date1_OWID %>%
   ggplot()+
   geom_count(mapping = aes(x = total_cases,y = `Country Name`, color = date))
 
-urbanization_cases_date1_OWID %>% 
-  full_join(urbanization_cases_date2_OWID) %>%
-    mutate(date = as.character(date)) %>%
-  ggplot()+
-  geom_count(mapping = aes(x = new_cases,y = `Country Name`, color = date))
-
 ```
+
+when looking at these graphs the changes are very interesting. on the first daily vaccinations all of the middle class getting vaccinated at a way higher rate then the first date. Also lookin at both dates the low income population is being vaccinated at a way lower rate than everyone else.
+
+Then when looking at the amount of cases on each day respectively. The upper middle class has around the same amount of cases on each day yet they are being vaccinated at a significantly higher rate than the first day.
+
+One thing that may be making the data inconsistent is the poopulation of each class is different. If a certain class has more population they will have more cases and vaccinations
+
 ```{r}
-urbanization_cases_date1_OWID
-urbanization_vacc_date1_OWID
 urbanization_cases_date1_OWID %>%
   select(-(iso_code)) %>%
   left_join(urbanization_vacc_date1_OWID, be = "date") %>%
@@ -367,6 +398,8 @@ urbanization_cases_date2_OWID %>%
   ggplot()+
   geom_point(mapping = aes(x = population, y = daily_vaccinations, color = `Country Name`))
 ```
+using these graphs we can see in the chart of population vs daily vaccinations that almost stays the same between both dates (of course on date is scaled higher than the other) except that the vaccinations in the higher class sky rockets
+
 ```{r}
 urbanization_cases_date1_OWID %>%
   ggplot()+
@@ -376,6 +409,10 @@ urbanization_cases_date2_OWID %>%
   ggplot()+
   geom_point(mapping = aes(x = population, y = total_cases, color = `Country Name`))
 ```
+
+Here we see that the high income is has a very high amount of cases even though they do not make up that much of the population. we decided to calculate the percent of new cases, percent of total cases and percent of population each class takes up
+This also justifys some of the other data we saw. for instance the reason that the low income population is geting less vaccinations and less cases and a overall lower rate is because they take up a very little amount of the population compared to the other classes
+
 ```{r}
 
 urbanization_cases_date1_OWID %>%
@@ -386,31 +423,24 @@ urbanization_cases_date2_OWID %>%
   select(`Country Name`, "pertot", "pernew", "perpop")
 ```
 
-```{r}
-urbanization_vacc_date1_OWID
-urb_vacc_date1_owid_per <- urbanization_vacc_date1_OWID %>%
-  select(-(iso_code)) %>%
-  right_join(urbanization_cases_date1_OWID, be = "date") %>%
-  mutate("pertot" = (people_vaccinated/sum(people_vaccinated)*100), "pernew" = (daily_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
-  select(`Country Name`,date, "pertot", "pernew", "perpop")
-urb_vacc_date2_owid_per <-urbanization_vacc_date2_OWID %>%
-  select(-(iso_code)) %>%
-  right_join(urbanization_cases_date2_OWID, be = "date") %>%
-  mutate("pertot" = (people_vaccinated/sum(people_vaccinated)*100), "pernew" = (daily_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
-  select(`Country Name`,date, "pertot", "pernew", "perpop")
-```
+From this calculation we see that the upper class is only  15.7% of the population and takes up over 40 percent of the total cases on both dates. That means that almost half of all covid cases are coming for 15% of the population.
+We can see that they are working to fix this problem as the high income population is getting vaccinated at double the rate they are in the first date.
 
 ```{r}
-urb_vacc_date1_owid_per %>%
-  full_join(urb_vacc_date2_owid_per) %>%
-  ggplot(mapping = aes(date,pertot, fill = `Country Name`))+
-  geom_col()
-urb_vacc_date1_owid_per %>%
-  full_join(urb_vacc_date2_owid_per) %>%
-  ggplot(mapping = aes(date,pernew, fill = `Country Name`))+
-  geom_col()
-urb_vacc_date1_owid_per %>%
-  full_join(urb_vacc_date2_owid_per) %>%
-  ggplot(mapping = aes(`Country Name`, perpop))+
-  geom_col()
+urbanization_cases_date1_OWID %>%
+  select(-(iso_code)) %>%
+  left_join(urbanization_vacc_date1_OWID, be = "date") %>%
+  mutate("pertot" = (total_vaccinations/sum(total_vaccinations)*100), "pernew" = (daily_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`, "pertot", "pernew", "perpop")
+urbanization_cases_date2_OWID %>%
+  select(-(iso_code)) %>%
+  left_join(urbanization_vacc_date2_OWID, be = "date") %>%
+  mutate("pertot" = (total_vaccinations/sum(total_vaccinations)*100), "pernew" = (new_vaccinations/sum(daily_vaccinations)*100), "perpop" = (population/sum(population)*100)) %>%
+  select(`Country Name`, "pertot", "pernew", "perpop")
 ```
+
+The total vaccinations between both dates is also interesting. As we can see high income once again has a very high rate of vaccination and total vaccination considering its low population percentage. In the second date we can see that the percent of total and new vaccinations have gone down in the high income population. This is probably because they got vaccinated early so other classes are catching up.
+
+Another thing that we can see is at how much of a higher rate the upper income classes gets vaccinated than the lower classes. in the first date the higher income groups (high income and upper middle income) make up more then 80 percent of the vaccinated population and more than 80 percent of the people getting vaccinated on the particular day. whilst having the almost the same amount of population percentage
+
+This is concerning as it shows that the lower classes are not getting vaccinated.
