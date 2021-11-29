@@ -175,7 +175,7 @@ urbanization_covid_date1 %>%
   geom_boxplot()
 ```
 
-as shown in the box plot there are many outliars in this set. We filtered so the plot chart oly shows entries be that have below 1.5 million new cases.
+as shown in the box plot there are many outliars in this set. We filtered so the plot chart only shows entries be that have below 1.5 million new cases.
 ```{r}
 
 urbanization_covid_date1 %>%
