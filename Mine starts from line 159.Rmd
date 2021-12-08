@@ -1,0 +1,286 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# repos="https://utstat.toronto.edu/cran/"
+library(tidyverse)
+library(stringr)
+library(lubridate)
+library(maps)
+library(dplyr)
+tinytex::install_tinytex()
+```
+
+```{r results='hide', warning=FALSE,}
+covid_cases <- read_csv("https://covid.ourworldindata.org/data/owid-covid-data.csv",
+                        col_types = cols(
+                          .default = col_double(),
+                          date = col_date(format =""),
+                          location = col_character()
+                        ))
+covid_cases %>% head()
+
+covid_vaccs <- read_csv("https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/vaccinations/vaccinations.csv")
+covid_vaccs %>% head()
+
+covid_tests <- read_csv("https://covid.ourworldindata.org/data/testing/covid-testing-all-observations.csv")
+covid_tests %>% head()
+
+covid_response <- read_csv("https://raw.githubusercontent.com/OxCGRT/covid-policy-tracker/master/data/OxCGRT_latest.csv",
+                           col_types = cols(
+                             .default = col_character(),
+                             Date = col_date(format = "%Y%m%d"))
+                           ) %>%
+    mutate(
+      across(starts_with("Confirmed"), as.integer),
+      across(ends_with("Flag"), as.logical), 
+      across(ends_with("Index"), as.double), 
+      across(ends_with("ForDisplay"), as.double),
+      )
+covid_response %>% head()
+
+regionclassification <- read_tsv("WorldRegions.csv",skip = 1)
+regionclassification %>% head()
+
+area <- read_tsv("AREA.csv", col_names = c("Country", "Area", "ranking", "reigon"),skip = 1)
+area %>% head()
+
+population <- read_tsv("POPULATION.csv", col_names = c("Country", "Population", "ranking", "reigon"),skip = 1)
+population %>% head()
+
+populationdistribution <- read_tsv("POPULATIONDISTRIBUTION.csv")
+populationdistribution %>% head()
+
+urbanization <- read_tsv("URBANIZATION.csv")
+urbanization %>% head()
+
+internetusage <- read_tsv("INTERNETUSER.csv")
+internetusage %>% head()
+```
+
+ - Tidying Data(idk they all look tidy)
+
+```{r results = 'hide'}
+covid_cases
+covid_response
+covid_tests
+covid_vaccs
+regionclassification
+area
+population
+populationdistribution
+urbanization
+internetusage
+```
+
+```{r results = 'hide'}
+urbanization_tidy <- urbanization %>%
+  select(`Country Name`, `Country Code`, `2020`) %>%
+  rename("Urbanization Level" = `2020`)
+urbanization_tidy
+
+internetusage_tidy <- internetusage %>%
+  select(`Country Name`, `Country Code`, `2019`) %>%
+  rename("Individuals Internet Usage" = `2019`)
+internetusage_tidy
+```
+
+
+
+
+
+
+ - Date Selection
+ 
+ So to pick our dates we wanted to see the difference between the peaks of the 2 waves of covid-19. To do this we looked plotted the data set and plotted the amount of new cases each day of 2021
+ 
+```{r}
+cases_per_date <- covid_cases %>%
+  filter(date > "2021-01-01") %>%
+  select(date, new_cases) %>%
+  group_by(date)
+
+```
+```{r}
+cases_per_date %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+```
+
+As we can see there are 2 clear waves of covid where daily cases rise then fall, The 2 happen around mid may and late august.
+
+To find the dates we wanted to use we spit the year into 2 sections before july 1st and after july first as you can see in the next graphs this clearly defines the 2 waves
+
+```{r}
+cases_per_date %>%
+  filter(date < "2021-07-01") %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+cases_per_date %>%
+  filter(date > "2021-07-01") %>%
+  ggplot(mapping = aes(x = date, y = new_cases)) +
+  geom_point() +
+  geom_smooth()
+```
+
+Now we filtered for the days with the most new cases in 2021 before july 1st and after july first giving us our dates.
+
+April 28th and august 6th
+
+```{r}
+cases_per_date %>%
+  filter(date < "2021-07-01") %>%
+  arrange(desc(new_cases))
+cases_per_date %>%
+  filter(date > "2021-07-01") %>%
+  arrange(desc(new_cases))
+```
+
+```{r}
+covid_cases_date1 <- covid_cases %>%
+  filter(date == "2021-04-28")
+covid_cases_date2 <- covid_cases %>% 
+  filter(date == "2021-08-06")
+covid_vaccs_date1 <- covid_vaccs %>% 
+  filter(date == "2021-04-28")
+covid_vaccs_date2 <- covid_vaccs %>%
+    filter(date == "2021-08-06")
+covid_tests_date1 <- covid_tests %>% 
+  filter(Date == "2021-04-28")
+covid_tests_date2 <- covid_tests %>%
+    filter(Date == "2021-08-06")
+```
+
+ - analyzing internet usage
+ 
+merging internetusage with new case at certain date
+```{r out.width="50%"}
+internetusage_date1 <- internetusage_tidy %>%
+  right_join(covid_cases_date1,by = c("Country Name" = "location")) 
+internetusage_date2 <- internetusage_tidy %>%
+  right_join(covid_cases_date2,by = c("Country Name" = "location"))
+internetusage_date1_tidy <- internetusage_date1[!is.na(internetusage_date1$`Individuals Internet Usage`),]
+internetusage_date2_tidy <- internetusage_date2[!is.na(internetusage_date2$`Individuals Internet Usage`),]
+internetusage_date2_tidy %>% 
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = new_cases))+
+  ggtitle("2021-08-06")+
+  geom_boxplot()
+internetusage_date1_tidy %>% 
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = new_cases))+
+  ggtitle("2021-04-28")+
+  geom_boxplot()
+```
+By showing boxplot we remove outlier to get more accurate info
+
+```{r out.width="50%"}
+internetusage_date1_tidy %>%
+  filter(`total_cases` < 100000) %>%
+    ggplot(mapping = aes(y = `Individuals Internet Usage`, x = new_cases))+
+    ggtitle("2021-04-28")+
+    geom_point()+
+  geom_smooth(method= "lm")
+internetusage_date2_tidy %>%
+  filter(`total_cases` < 100000) %>%
+    ggplot(mapping = aes(y = `Individuals Internet Usage`, x = new_cases))+
+    ggtitle("2021-08-06")+
+    geom_point() +
+  geom_smooth(method = "lm")
+```
+From what I think, Covid causes increasing internet usage therefore I set new_cases as xin and Internet Usage as yin.
+
+Showing the correlation between Internet Usage and new_cases. It's not that accurate but It suggests that internet usage increases as more new_cases reported. However, a negative correlation is shown on date2, there might have some correlation to the country urbanization level since internet requires a relatively better urban.
+
+Redo the same thing to covid_tests.
+```{r out.width="50%"}
+internetusage_test_date1 <- internetusage_tidy %>%
+  right_join(covid_tests_date1, by = c("Country Code" = "ISO code"))%>%
+  arrange(desc(`Daily change in cumulative total`))
+internetusage_test_date2 <- internetusage_tidy %>%
+  right_join(covid_tests_date2, by = c("Country Code" = "ISO code"))%>%
+  arrange(desc(`Daily change in cumulative total`))
+internetusage_test_date1_tidy <- internetusage_test_date1[!is.na(internetusage_test_date1$`Individuals Internet Usage`),]
+internetusage_test_date2_tidy <- internetusage_test_date2[!is.na(internetusage_test_date2$`Individuals Internet Usage`),]
+internetusage_test_date1_tidy %>%
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = `Daily change in cumulative total`))+
+  geom_boxplot()
+internetusage_test_date2_tidy %>%
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = `Daily change in cumulative total`))+
+  geom_boxplot()
+internetusage_test_date1_tidy %>%
+  filter(`Daily change in cumulative total` < 400000) %>%
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = `Daily change in cumulative total`))+
+  geom_point() +
+  geom_smooth(method="lm")
+internetusage_test_date2_tidy %>%
+  filter(`Daily change in cumulative total` < 400000) %>%
+  ggplot(mapping = aes(x = `Individuals Internet Usage`, y = `Daily change in cumulative total`))+
+  geom_point() +
+  geom_smooth(method="lm")
+
+```
+ However, from this daily change vs. internet-usage. We found that as internet usage increases, daily change tend to have a increasing trend as well. As more internet usage sates more people stay at home and do everything through internet, daily change still increases. Internet usage is not the main factor that affect daily change.
+ 
+ Moving to the country with most daily new cases and see how internet usage changes there.
+ 
+```{r out.width="50%"}
+internetusage_case_date1 <- internetusage_date1_tidy %>%
+  filter(is.na(`Country Code`) == FALSE) %>%
+  arrange(desc(new_cases)) %>%
+  slice(1:20) %>%
+  select("Country Name", "Country Code", "date", "new_cases", "Individuals Internet Usage")
+internetusage_case_date2 <- internetusage_date2_tidy %>%
+  filter(is.na(`Country Code`) == FALSE) %>%
+  arrange(desc(new_cases)) %>%
+  slice(1:20) %>%
+  select("Country Name", "Country Code", "date", "new_cases", "Individuals Internet Usage")
+internetusage_case_dates <- internetusage_case_date1 %>%
+  full_join(internetusage_case_date2) %>%
+  mutate(date = as.character(date))
+internetusage_case_dates %>% 
+  ggplot()+
+  geom_point(mapping = aes(x = new_cases, y = `Individuals Internet Usage`, colour = date))
+```
+ The point are kinda messy but we can tell that as more daily new_cases a country have, it tends to be more internet-usage in that country. However, from the table we can see that India has a lot new_cases, but their internet-usage is even lower than 50%. That is because internet-usage is mostly affected by people's income level and country's economic situation. India is not a developed country and they have to use most of their money to deal with these massive daily new_cases.
+ As of the date, we can see that there isn't much differences between April 28th and August 6th. That is because most people have already set up their internet in the early stage of Covid (April 28th). 
+ To prove what we stated above, we looked into the data by income level.
+```{r}
+internetusage_vacc_date1_OWID <- internetusage_tidy %>%
+  right_join(covid_vaccs_date1,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+internetusage_vacc_date2_OWID <- internetusage_tidy %>%
+  right_join(covid_vaccs_date2,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+```
+ 
+ 
+```{r out.width="50%"}
+internetusage_vacc_date1_OWID %>% 
+  mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = daily_vaccinations,y = `Individuals Internet Usage`, color = `Country Name`))
+internetusage_vacc_date2_OWID %>% 
+  mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = daily_vaccinations,y = `Individuals Internet Usage`, color = `Country Name`))
+internetusage_cases_date1_OWID <- internetusage_tidy %>%
+  right_join(covid_cases_date1,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+internetusage_cases_date2_OWID <- internetusage_tidy %>%
+  right_join(covid_cases_date2,by = c("Country Name" = "location")) %>%
+  filter(`Country Name`== "High income"|`Country Name`== "Upper middle income"|`Country Name`== "Lower middle income"|`Country Name` == "Low income")
+internetusage_cases_date1_OWID %>% 
+  mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = new_cases,y = `Individuals Internet Usage`, color = `Country Name`))
+internetusage_cases_date2_OWID %>% 
+  mutate(date = as.character(date)) %>%
+  ggplot()+
+  geom_count(mapping = aes(x = new_cases,y = `Individuals Internet Usage`, color = `Country Name`))
+
+```
+ From the graph above we can tell that the amount of vaccs and daily new_cases won't affect the amount of internet-usage that much, by filtering country using income level, we see that higher income level tends to have higher internet-usage and that's what we assumed before.
